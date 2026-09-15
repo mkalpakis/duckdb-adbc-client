@@ -12,6 +12,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(${TARGET_NAME} LANGUAGES CXX)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # allows clangd LSP to function
+
 # Include headers
 include_directories(src/include)
 include_directories(arrow-adbc/c/vendor)
