@@ -36,19 +36,19 @@ public:
     AdbcArrowStreamFactory(const string &uri, const string &query_text);
     // Use a connection from the catalog's pool (i.e., SELECT * FROM <adbc>)
     AdbcArrowStreamFactory(unique_ptr<AdbcPooledConnection> connection, const string &query_text);
-	// same type of constructor, but allows specification of the table name -Marios
-	AdbcArrowStreamFactory(unique_ptr<AdbcPooledConnection> conn, const string &query_text, string name);
+    // same type of constructor, but allows specification of the table name -Marios
+    AdbcArrowStreamFactory(unique_ptr<AdbcPooledConnection> conn, const string &query_text, string name);
     AdbcStatement *GetStatement();
     void ResetStatement();
-	// Marios adding so AdbcProduceArrowScan
-	// can create a new query with projections
-	string GetTableName();
+    // Marios adding so AdbcProduceArrowScan
+    // can create a new query with projections
+    string GetTableName();
 
 private:
     unique_ptr<AdbcPooledConnection> connection;
     string query_text;
     Handle<Private::AdbcStatement> statement;
-	string table_name;
+    string table_name;
 };
 
 // A wrapper class to take ownership of the factory object (and the
