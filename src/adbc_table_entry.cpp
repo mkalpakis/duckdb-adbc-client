@@ -103,11 +103,10 @@ TableFunction AdbcTableEntry::GetScanFunction(ClientContext &context, unique_ptr
                                            catalog_name.empty() ? nullptr : catalog_name.c_str(),
                                            internal_schema.c_str(),
                                            name.c_str());
+	auto table_name = adbc_catalog.GetDelimitedInternalName(schema.name.GetIdentifierName(), name.GetIdentifierName());
+    string sql = "SELECT * FROM  " + table_name;
 
-    string sql = "SELECT * FROM  " +
-                 adbc_catalog.GetDelimitedInternalName(schema.name.GetIdentifierName(), name.GetIdentifierName());
-
-    auto adbc_arrow_stream_factory = make_uniq<AdbcArrowStreamFactory>(std::move(pooled_connection), sql);
+    auto adbc_arrow_stream_factory = make_uniq<AdbcArrowStreamFactory>(std::move(pooled_connection), sql, table_name);
     auto arrow_function_data = make_uniq<AdbcArrowScanFunctionData>(context, std::move(adbc_arrow_stream_factory));
     arrow_function_data->all_types = arrow_function_data->arrow_table.GetTypes();
     arrow_function_data->cardinality = cardinality;

@@ -34,6 +34,14 @@ AdbcArrowStreamFactory::AdbcArrowStreamFactory(unique_ptr<AdbcPooledConnection> 
       statement(connection->GetConnection().MakeStatement(query_text)) {
 }
 
+
+// another constructor that specifies the table name
+AdbcArrowStreamFactory::AdbcArrowStreamFactory(unique_ptr<AdbcPooledConnection> conn, const string &query_text, string name)
+    : connection(std::move(conn)), query_text(query_text),
+      statement(connection->GetConnection().MakeStatement(query_text)),
+	  table_name(std::move(name)) {
+}
+
 AdbcStatement *AdbcArrowStreamFactory::GetStatement() {
     return statement.get();
 }
@@ -41,6 +49,11 @@ AdbcStatement *AdbcArrowStreamFactory::GetStatement() {
 void AdbcArrowStreamFactory::ResetStatement() {
     statement = connection->GetConnection().MakeStatement(query_text);
 }
+
+string AdbcArrowStreamFactory::GetTableName() {
+	return this->table_name;
+}
+
 
 unique_ptr<ArrowArrayStreamWrapper> AdbcProduceArrowScan(uintptr_t factory_ptr, ArrowStreamParameters &parameters) {
     // Reinterpret the factory pointer to the correct class
@@ -50,6 +63,12 @@ unique_ptr<ArrowArrayStreamWrapper> AdbcProduceArrowScan(uintptr_t factory_ptr, 
     Handle<Private::AdbcError> error = {};
     ArrowArrayStream adbc_stream = {};
     int64_t rows_affected;
+
+	// change the first argument, so that projection is pushed
+	// down to the attached table, rather than reading all of it
+	// parameters->projected_columns.columns = vector<string>
+	// lets us access the columns we want to project (as a list of strings)
+	// however, also need to get the table name
     CHECK_ADBC(AdbcStatementExecuteQuery(factory->GetStatement(), &adbc_stream, &rows_affected, error.get()),
                IOException);
 
