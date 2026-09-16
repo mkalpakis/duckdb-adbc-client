@@ -47,14 +47,41 @@ AdbcStatement *AdbcArrowStreamFactory::GetStatement() {
     return statement.get();
 }
 
+void AdbcArrowStreamFactory::SetStatementProjection(const vector<string> &columns) {
+	// if the constructor setting the table name wasn't called
+	// we don't want to change the query
+	if (this->table_name.empty()) {
+		return;
+	}
+
+
+
+	string q_text = "SELECT ";
+	string col_list = "";
+
+	// creates the list of projected columns
+	if (columns.empty()) {
+		// we aren't projecting anything
+		col_list = "*";
+	} else {
+		// add the column to our list
+		// (using &col to avoid extra copying)
+		for (const auto &col : columns) {
+			if (!col_list.empty()) {
+				col_list += ", ";
+			}
+			col_list += col;
+		}
+	}
+
+	q_text += col_list + " FROM " + this->table_name;
+
+	this->statement = connection->GetConnection().MakeStatement(q_text);
+}
+
 void AdbcArrowStreamFactory::ResetStatement() {
     statement = connection->GetConnection().MakeStatement(query_text);
 }
-
-string AdbcArrowStreamFactory::GetTableName() {
-    return this->table_name;
-}
-
 
 unique_ptr<ArrowArrayStreamWrapper> AdbcProduceArrowScan(uintptr_t factory_ptr, ArrowStreamParameters &parameters) {
     // Reinterpret the factory pointer to the correct class
@@ -70,6 +97,11 @@ unique_ptr<ArrowArrayStreamWrapper> AdbcProduceArrowScan(uintptr_t factory_ptr, 
     // parameters->projected_columns.columns = vector<string>
     // lets us access the columns we want to project (as a list of strings)
     // however, also need to get the table name
+
+	// note that a statement isn't just a string, its an object that is specifically created
+
+	factory->SetStatementProjection(parameters.projected_columns.columns);
+
     CHECK_ADBC(AdbcStatementExecuteQuery(factory->GetStatement(), &adbc_stream, &rows_affected, error.get()),
                IOException);
 
