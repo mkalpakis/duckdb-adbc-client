@@ -1,0 +1,26 @@
+name: duckdb-adbc-clickhouse-bench
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8
+    ports:
+      - "127.0.0.1:${CLICKHOUSE_BENCH_PORT:-18123}:8123"
+      - "127.0.0.1:${CLICKHOUSE_FLIGHT_PORT:-9090}:9090"
+    environment:
+      CLICKHOUSE_DB: adbc_bench
+      CLICKHOUSE_USER: benchmark
+      CLICKHOUSE_PASSWORD: benchmark-local
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes:
+      - data:/var/lib/clickhouse
+      - ./config.d:/etc/clickhouse-server/config.d:ro
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "benchmark", "--password", "benchmark-local", "--query", "SELECT 1"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+volumes:
+  data:
