@@ -48,35 +48,37 @@ AdbcStatement *AdbcArrowStreamFactory::GetStatement() {
 }
 
 void AdbcArrowStreamFactory::SetStatementProjection(const vector<string> &columns) {
-	// if the constructor setting the table name wasn't called
-	// we don't want to change the query
-	if (this->table_name.empty()) {
-		return;
-	}
+    // if the constructor setting the table name wasn't called
+    // we don't want to change the query
+    if (this->table_name.empty()) {
+        return;
+    }
 
+    string q_text = "SELECT ";
+    string col_list = "";
 
+    // creates the list of projected columns
+    if (columns.empty()) {
+        // we aren't projecting anything
+        col_list = "*";
+    } else {
+        // add the column to our list
+        // (using &col to avoid extra copying)
+        for (const auto &col : columns) {
+            if (!col_list.empty()) {
+                col_list += ", ";
+            }
+            col_list += col;
+        }
+    }
 
-	string q_text = "SELECT ";
-	string col_list = "";
+    q_text += col_list + " FROM " + this->table_name;
 
-	// creates the list of projected columns
-	if (columns.empty()) {
-		// we aren't projecting anything
-		col_list = "*";
-	} else {
-		// add the column to our list
-		// (using &col to avoid extra copying)
-		for (const auto &col : columns) {
-			if (!col_list.empty()) {
-				col_list += ", ";
-			}
-			col_list += col;
-		}
-	}
+    this->statement = connection->GetConnection().MakeStatement(q_text);
+}
 
-	q_text += col_list + " FROM " + this->table_name;
-
-	this->statement = connection->GetConnection().MakeStatement(q_text);
+bool AdbcArrowStreamFactory::IsProjectPushdown() {
+    return !this->table_name.empty();
 }
 
 void AdbcArrowStreamFactory::ResetStatement() {
@@ -98,9 +100,9 @@ unique_ptr<ArrowArrayStreamWrapper> AdbcProduceArrowScan(uintptr_t factory_ptr, 
     // lets us access the columns we want to project (as a list of strings)
     // however, also need to get the table name
 
-	// note that a statement isn't just a string, its an object that is specifically created
+    // note that a statement isn't just a string, its an object that is specifically created
 
-	factory->SetStatementProjection(parameters.projected_columns.columns);
+    factory->SetStatementProjection(parameters.projected_columns.columns);
 
     CHECK_ADBC(AdbcStatementExecuteQuery(factory->GetStatement(), &adbc_stream, &rows_affected, error.get()),
                IOException);
@@ -141,6 +143,10 @@ AdbcArrowScanFunctionData::AdbcArrowScanFunctionData(ClientContext &context, uni
     ArrowTableFunction::PopulateArrowTableSchema(context, arrow_table, schema_root.arrow_schema);
 }
 
+bool AdbcArrowScanFunctionData::IsProjectPushdown() {
+    return this->adbc_arrow_stream_factory->IsProjectPushdown();
+}
+
 void AdbcScanFunction(ClientContext &context, TableFunctionInput &input, DataChunk &output) {
 
     // We closely follow the DuckDB Arrow extension's scan function from:
@@ -177,11 +183,14 @@ void AdbcScanFunction(ClientContext &context, TableFunctionInput &input, DataChu
         ArrowTableFunction::ArrowToDuckDB(local_state,
                                           function_data.arrow_table.GetColumns(),
                                           local_state.all_columns,
-                                          false);
+                                          function_data.IsProjected());
         output.ReferenceColumns(local_state.all_columns, global_state.projection_ids);
     } else {
         output.SetChildCardinality(output_size);
-        ArrowTableFunction::ArrowToDuckDB(local_state, function_data.arrow_table.GetColumns(), output, false);
+        ArrowTableFunction::ArrowToDuckDB(local_state,
+                                          function_data.arrow_table.GetColumns(),
+                                          output,
+                                          function_data.IsProjected());
     }
 
     output.Verify();

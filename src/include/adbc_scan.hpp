@@ -40,10 +40,15 @@ public:
     AdbcArrowStreamFactory(unique_ptr<AdbcPooledConnection> conn, const string &query_text, string t_name);
     AdbcStatement *GetStatement();
     void ResetStatement();
-	// using the table name field
-	// and with projection columns passed
-	// creates a new SQL statement
-	void SetStatementProjection(const vector<string> &columns);
+    // using the table name field
+    // and with projection columns passed
+    // creates a new SQL statement
+    void SetStatementProjection(const vector<string> &columns);
+    // telling if the sql statement
+    // being passed to the attach'd DB has column projection
+    // or not (meaning we've nontrivially called SetStatementProjection)
+    // this is controlled by table_name.empty()
+    bool IsProjectPushdown();
 
 private:
     unique_ptr<AdbcPooledConnection> connection;
@@ -58,6 +63,9 @@ class AdbcArrowScanFunctionData : public ArrowScanFunctionData {
 public:
     // Pass the factory and the factory function that creates an ArrowArrayStream
     AdbcArrowScanFunctionData(ClientContext &context, unique_ptr<AdbcArrowStreamFactory> factory);
+    // reaches into adbc_arrow_stream_factory and exposes if we're pushing
+    // the columnar projection down to the attached DB
+    bool IsProjectPushdown();
 
 private:
     unique_ptr<AdbcArrowStreamFactory> adbc_arrow_stream_factory;
