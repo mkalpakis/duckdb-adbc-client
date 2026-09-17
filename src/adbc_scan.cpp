@@ -35,12 +35,18 @@ AdbcArrowStreamFactory::AdbcArrowStreamFactory(unique_ptr<AdbcPooledConnection> 
 }
 
 
-// another constructor that specifies the table name
+// another constructor that specifies the table name and delimiting function
 AdbcArrowStreamFactory::AdbcArrowStreamFactory(unique_ptr<AdbcPooledConnection> conn,
                                                const string &query_text,
-                                               string name)
+                                               string name,
+                                               std::function<string(const string &)> delimiter)
     : connection(std::move(conn)), query_text(query_text),
-      statement(connection->GetConnection().MakeStatement(query_text)), table_name(std::move(name)) {
+      statement(connection->GetConnection().MakeStatement(query_text)), table_name(std::move(name)),
+      delimiter(std::move(delimiter)) {
+}
+
+string AdbcArrowStreamFactory::Delimit(const string &name) {
+    return this->delimiter(name);
 }
 
 AdbcStatement *AdbcArrowStreamFactory::GetStatement() {
@@ -68,7 +74,7 @@ void AdbcArrowStreamFactory::SetStatementProjection(const vector<string> &column
             if (!col_list.empty()) {
                 col_list += ", ";
             }
-            col_list += col;
+            col_list += this->Delimit(col);
         }
     }
 
@@ -183,14 +189,14 @@ void AdbcScanFunction(ClientContext &context, TableFunctionInput &input, DataChu
         ArrowTableFunction::ArrowToDuckDB(local_state,
                                           function_data.arrow_table.GetColumns(),
                                           local_state.all_columns,
-                                          function_data.IsProjected());
+                                          function_data.IsProjectPushdown());
         output.ReferenceColumns(local_state.all_columns, global_state.projection_ids);
     } else {
         output.SetChildCardinality(output_size);
         ArrowTableFunction::ArrowToDuckDB(local_state,
                                           function_data.arrow_table.GetColumns(),
                                           output,
-                                          function_data.IsProjected());
+                                          function_data.IsProjectPushdown());
     }
 
     output.Verify();

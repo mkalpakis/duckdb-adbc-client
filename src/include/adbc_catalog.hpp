@@ -70,9 +70,21 @@ public:
         return schema;
     }
 
+    // returns a function which delimits tables/columns etc
+    // (passed as strings) with the appropriate delimiter
+    // depending on what the catalog saved as the delimiter
+    std::function<string(const string &)> GetDelimiter() const {
+        // [delim = this->delimiter] captures this->delimiter
+        // into the closure, and is copied by value
+        // so there is no dependence on the catalog
+        return
+            [delim = this->delimiter](const string &name) { return string(1, delim[0]) + name + string(1, delim[1]); };
+    }
+
     string GetDelimitedInternalName(const string &schema, const string &table) {
-        auto quoted_schema = delimiter[0] + GetInternalSchemaName(schema) + delimiter[1];
-        auto quoted_table = delimiter[0] + table + delimiter[1];
+        auto quoter = this->GetDelimiter();
+        auto quoted_schema = quoter(this->GetInternalSchemaName(schema));
+        auto quoted_table = quoter(table);
 
         if (no_schemas) {
             return quoted_table;

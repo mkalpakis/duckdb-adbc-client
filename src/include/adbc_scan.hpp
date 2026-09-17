@@ -36,8 +36,12 @@ public:
     AdbcArrowStreamFactory(const string &uri, const string &query_text);
     // Use a connection from the catalog's pool (i.e., SELECT * FROM <adbc>)
     AdbcArrowStreamFactory(unique_ptr<AdbcPooledConnection> connection, const string &query_text);
-    // same type of constructor, but allows specification of the table name -Marios
-    AdbcArrowStreamFactory(unique_ptr<AdbcPooledConnection> conn, const string &query_text, string t_name);
+    // same type of constructor, but allows specification of the table name, and a delimiting function -Marios
+    AdbcArrowStreamFactory(
+        unique_ptr<AdbcPooledConnection> conn,
+        const string &query_text,
+        string t_name,
+        std::function<string(const string &)> delimiter = [](const string &name) { return name; });
     AdbcStatement *GetStatement();
     void ResetStatement();
     // using the table name field
@@ -50,11 +54,18 @@ public:
     // this is controlled by table_name.empty()
     bool IsProjectPushdown();
 
+    // the delimiting function associated with the attached catalog
+    // if there is no attached catalog, this is just the identity
+    string Delimit(const string &name);
+
 private:
     unique_ptr<AdbcPooledConnection> connection;
     string query_text;
     Handle<Private::AdbcStatement> statement;
     string table_name;
+    // the delimiting function associated with the attached catalog
+    // if there is no attached catalog, this is just the identity
+    std::function<string(const string &)> delimiter;
 };
 
 // A wrapper class to take ownership of the factory object (and the

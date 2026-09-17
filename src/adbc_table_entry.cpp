@@ -106,7 +106,8 @@ TableFunction AdbcTableEntry::GetScanFunction(ClientContext &context, unique_ptr
     auto table_name = adbc_catalog.GetDelimitedInternalName(schema.name.GetIdentifierName(), name.GetIdentifierName());
     string sql = "SELECT * FROM  " + table_name;
 
-    auto adbc_arrow_stream_factory = make_uniq<AdbcArrowStreamFactory>(std::move(pooled_connection), sql, table_name);
+    auto adbc_arrow_stream_factory =
+        make_uniq<AdbcArrowStreamFactory>(std::move(pooled_connection), sql, table_name, adbc_catalog.GetDelimiter());
     auto arrow_function_data = make_uniq<AdbcArrowScanFunctionData>(context, std::move(adbc_arrow_stream_factory));
     arrow_function_data->all_types = arrow_function_data->arrow_table.GetTypes();
     arrow_function_data->cardinality = cardinality;
