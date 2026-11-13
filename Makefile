@@ -6,10 +6,10 @@ PROJ_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 EXTENSION_NAME=adbc
 EXT_CONFIG=${PROJ_DIR}extension_config.cmake
 
-include extension-ci-tools/makefiles/duckdb_extension.Makefile
+# Without this DuckDB reports v2.0.0-devN and won't load into a v2.0.0 build. Keep in sync with duckdb/.
+OVERRIDE_GIT_DESCRIBE ?= v2.0.0
 
-# The DuckDB version to target
-TARGET_DUCKDB_VERSION=v1.2.0
+include extension-ci-tools/makefiles/duckdb_extension.Makefile
 
 # Keep the clangd compile-commands tree in sync with every `make` invocation,
 # without disabling unity builds in the real build/release tree.
